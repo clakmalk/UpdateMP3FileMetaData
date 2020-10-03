@@ -15,48 +15,39 @@ namespace SoftFilesApp
         {
             Console.WriteLine("Files path?");
             string filesPath = Console.ReadLine();
-            string[] files = Directory.GetFiles(filesPath, "*.mp3", SearchOption.TopDirectoryOnly);
-            foreach(string file in files)
+            string[] folders = Directory.GetDirectories(filesPath);
+            //string[] files = Directory.GetFiles(filesPath, "*.mp3", SearchOption.AllDirectories);
+            Array.Sort(folders, StringComparer.InvariantCulture);
+            int count = 1;
+            foreach (string folder in folders)
             {
-                string fileName = (new FileInfo(file)).Name;
-                File.Copy(file, @"D:\" + fileName);
-                Console.WriteLine(fileName);
+                string folderName = new DirectoryInfo(folder).Name;
+                Console.WriteLine("Processing - " + folder);
+                string[] files = Directory.GetFiles(folder, "*.mp3");
+                foreach (string file in files)
+                {
+                    Console.WriteLine(count.ToString() + " - " + file);
+                    using (var mp3 = new Mp3(file, Mp3Permissions.ReadWrite))
+                    {
+                        Id3Tag tag = mp3.GetTag(Id3TagFamily.Version2X);
+                        if (tag == null)
+                        {
+                            tag = new Id3Tag();
+                            //tag.Version = Id3Version.V23;
+                            // version is internal set, but if we use reflection to set it, the mp3.WriteTag below works.
+                            var propinfo = typeof(Id3Tag).GetProperty("Version", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                            propinfo.SetValue(tag, Id3Version.V23);
+                        }
+                        tag.Track.Value = count;
+                        //tag.Album.Value = count.ToString();
+                        mp3.WriteTag(tag, WriteConflictAction.Replace);
+                        string fileId = GetFileId(count);
+                        string fileName = new FileInfo(file).Name;
+                        File.Copy(file, filesPath + @"/" + fileId + "_" + folderName + "_" + fileName);
+                    }
+                    count++;
+                }
             }
-            //string[] folders = Directory.GetDirectories(filesPath);
-            ////string[] files = Directory.GetFiles(filesPath, "*.mp3", SearchOption.AllDirectories);
-            //Array.Sort(folders, StringComparer.InvariantCulture);
-            //int count = 1;
-            //foreach (string folder in folders)
-            //{
-            //    string folderName = new DirectoryInfo(folder).Name;
-            //    Console.WriteLine("Processing - " + folder);
-            //    string[] files = Directory.GetFiles(folder, "*.mp3");
-            //    foreach (string file in files)
-            //    {
-            //        Console.WriteLine(count.ToString()+" - " + file);
-            //        using (var mp3 = new Mp3(file, Mp3Permissions.ReadWrite))
-            //        {
-            //            Id3Tag tag = mp3.GetTag(Id3TagFamily.Version2X);
-            //            if (tag == null)
-            //            {
-            //                tag = new Id3Tag();
-            //                //tag.Version = Id3Version.V23;
-            //                // version is internal set, but if we use reflection to set it, the mp3.WriteTag below works.
-            //                var propinfo = typeof(Id3Tag).GetProperty("Version", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            //                propinfo.SetValue(tag, Id3Version.V23);
-            //            }
-            //            tag.Track.Value = count;
-            //            //tag.Album.Value = count.ToString();
-            //            mp3.WriteTag(tag, WriteConflictAction.Replace);
-            //            string fileId = GetFileId(count);
-            //            string fileName = new FileInfo(file).Name;
-            //            File.Copy(file, filesPath + @"/" + fileId +"_"+folderName+ "_" + fileName);
-            //        }
-            //        count++;
-            //    }
-            //}
-            
-
             Console.ReadLine();
         }
 
